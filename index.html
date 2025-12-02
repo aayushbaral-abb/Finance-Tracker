@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finance Tracker | Dashboard (NPR)</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for professional look and feel */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+        .summary-card {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+            transition: transform 0.2s;
+        }
+        .summary-card:hover {
+            transform: translateY(-2px);
+        }
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.6);
+        }
+        /* Style for the statement table headers */
+        #statementTable th {
+            background-color: #e2e8f0;
+        }
+        /* Custom scrollbar for transaction list */
+        #statementTableBody {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+    <!-- Load Supabase, html2canvas, and jspdf CDNs -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- CRITICAL MISSING DEPENDENCY for pdf.autoTable() -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+
+    <div id="app" class="min-h-screen flex flex-col">
+
+        <!-- Header - MODIFIED CLASSES TO CENTER TITLE -->
+        <header class="bg-white shadow-md p-4 flex justify-center items-center sticky top-0 z-10 relative">
+            <!-- Centered Title -->
+            <h1 class="text-3xl font-bold text-gray-800 text-center">Finance Tracker (NPR)</h1>
+            
+            <!-- User Info moved to absolute right corner -->
+            <div id="user-info" class="flex items-center space-x-4 absolute right-4">
+                <span id="userEmail" class="text-gray-600 font-medium hidden text-sm md:text-base"></span>
+                <button id="logoutButton" class="hidden bg-red-500 hover:bg-red-600 text-white font-semibold py-1 px-3 rounded-lg transition duration-150 text-sm">
+                    Logout
+                </button>
+            </div>
+        </header>
+
+        <!-- Auth Screen (Login/Signup) -->
+        <main id="authView" class="flex-grow flex items-center justify-center p-4">
+            <div class="w-full max-w-md bg-white p-8 rounded-xl shadow-2xl">
+                <h2 id="authTitle" class="text-2xl font-bold mb-6 text-center text-blue-700">Login to Your Account</h2>
+
+                <!-- Auth Message Box -->
+                <div id="authMessage" class="hidden p-3 mb-4 text-sm rounded-lg" role="alert"></div>
+
+                <form id="authForm" class="space-y-4">
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700">Email Address</label>
+                        <input type="email" id="email" required autocomplete="email" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                        <input type="password" id="password" required autocomplete="current-password" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+
+                    <button type="submit" id="authSubmitButton" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+                        Login
+                    </button>
+                </form>
+
+                <p class="mt-6 text-center text-sm text-gray-600">
+                    <span id="authToggleText">Don't have an account?</span>
+                    <button id="authToggleButton" class="font-medium text-blue-600 hover:text-blue-500 ml-1">
+                        Sign Up
+                    </button>
+                </p>
+            </div>
+        </main>
+
+        <!-- Dashboard View -->
+        <main id="dashboardView" class="flex-grow p-4 md:p-8 hidden">
+            <h2 class="text-3xl font-semibold mb-6 text-gray-800">Your Financial Dashboard</h2>
+
+            <!-- Summary Boxes (Section 6) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <!-- Total Credit -->
+                <div class="summary-card bg-green-100 p-6 rounded-xl border-l-4 border-green-500">
+                    <p class="text-sm font-medium text-green-700 uppercase">Total Credit</p>
+                    <p id="totalCredit" class="text-4xl font-extrabold text-green-600 mt-1">NPR 0.00</p>
+                </div>
+                <!-- Total Debit -->
+                <div class="summary-card bg-red-100 p-6 rounded-xl border-l-4 border-red-500">
+                    <p class="text-sm font-medium text-red-700 uppercase">Total Debit</p>
+                    <p id="totalDebit" class="text-4xl font-extrabold text-red-600 mt-1">NPR 0.00</p>
+                </div>
+                <!-- Current Balance -->
+                <div class="summary-card bg-blue-100 p-6 rounded-xl border-l-4 border-blue-500">
+                    <p class="text-sm font-medium text-blue-700 uppercase">Current Balance</p>
+                    <p id="currentBalance" class="text-4xl font-extrabold text-blue-600 mt-1">NPR 0.00</p>
+                </div>
+            </div>
+
+            <!-- Action Buttons (Credit/Debit) -->
+            <div class="flex space-x-4 mb-8">
+                <button onclick="openTransactionModal('credit')" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition duration-200">
+                    + Add Credit
+                </button>
+                <button onclick="openTransactionModal('debit')" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition duration-200">
+                    - Add Debit
+                </button>
+                <button id="downloadPdfButton" class="flex-shrink-0 bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition duration-200">
+                    Download Statement (PDF)
+                </button>
+            </div>
+
+            <!-- Statement Section (Section 4) -->
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <h3 class="text-2xl font-semibold mb-4 text-gray-800">Statement History</h3>
+                <div class="overflow-x-auto">
+                    <table id="statementTable" class="min-w-full divide-y divide-gray-200">
+                        <thead class="sticky top-0 z-[5]">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount (NPR)</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remark</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="statementTableBody" class="bg-white divide-y divide-gray-200">
+                            <!-- Transactions will be rendered here -->
+                            <tr><td colspan="5" class="text-center py-4 text-gray-500">No transactions recorded yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        <!-- Transaction Modal (for Adding/Editing/Deleting) -->
+        <div id="transactionModal" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center hidden">
+            <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg mx-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 id="modalTitle" class="text-xl font-bold text-gray-800">Add New Transaction</h3>
+                    <button onclick="closeTransactionModal()" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+                </div>
+
+                <form id="transactionForm" class="space-y-4">
+                    <!-- Hidden field to store transaction ID for updates -->
+                    <input type="hidden" id="transactionId">
+                    <input type="hidden" id="transactionType">
+
+                    <!-- Date Picker (Section 5) -->
+                    <div>
+                        <label for="transactionDate" class="block text-sm font-medium text-gray-700">Date</label>
+                        <input type="date" id="transactionDate" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+
+                    <!-- Amount Box (Credit/Debit Amount) -->
+                    <div>
+                        <label for="transactionAmount" class="block text-sm font-medium text-gray-700">Amount (NPR)</label>
+                        <input type="number" id="transactionAmount" required min="0.01" step="0.01" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+
+                    <!-- Remark Box -->
+                    <div>
+                        <label for="transactionRemark" class="block text-sm font-medium text-gray-700">Remark/Description</label>
+                        <textarea id="transactionRemark" rows="2" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
+                    </div>
+
+                    <div class="flex justify-between pt-4">
+                        <button type="submit" id="saveTransactionButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+                            Save Transaction
+                        </button>
+                        <button type="button" id="deleteTransactionButton" onclick="deleteTransaction()" class="hidden bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+                            Delete Record
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        const SUPABASE_URL = 'https://bwhocmuvcyizbpwykofl.supabase.co'; // e.g., 'https://xyz.supabase.co'
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ3aG9jbXV2Y3lpemJwd3lrb2ZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2ODI0MTUsImV4cCI6MjA4MDI1ODQxNX0.0pJwBP50j9VZ1H7wVzPdZRflQEfZnidNpIFtmcP_iv8';
+
+        const { createClient } = supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // ------------------------------------------------------------------
+        // 2. DOM ELEMENTS & STATE
+        // ------------------------------------------------------------------
+        const authView = document.getElementById('authView');
+        const dashboardView = document.getElementById('dashboardView');
+        const authForm = document.getElementById('authForm');
+        const authTitle = document.getElementById('authTitle');
+        const authSubmitButton = document.getElementById('authSubmitButton');
+        const authToggleText = document.getElementById('authToggleText');
+        const authToggleButton = document.getElementById('authToggleButton');
+        const authMessage = document.getElementById('authMessage');
+        const userEmailSpan = document.getElementById('userEmail');
+        const logoutButton = document.getElementById('logoutButton');
+        const transactionModal = document.getElementById('transactionModal');
+        const transactionForm = document.getElementById('transactionForm');
+        const modalTitle = document.getElementById('modalTitle');
+        const downloadPdfButton = document.getElementById('downloadPdfButton');
+
+        let isSignUpMode = false;
+        let transactions = []; 
+        let transactionChannel = null; 
+
+        // ------------------------------------------------------------------
+        // 3. UI STATE MANAGEMENT
+        // ------------------------------------------------------------------
+
+        function showView(view) {
+            authView.classList.add('hidden');
+            dashboardView.classList.add('hidden');
+            
+            // Toggle visibility for elements in the absolute right corner
+            const userInfoDiv = document.getElementById('user-info');
+            if (view === 'dashboard') {
+                dashboardView.classList.remove('hidden');
+                userEmailSpan.classList.remove('hidden');
+                logoutButton.classList.remove('hidden');
+                authMessage.classList.add('hidden'); // Hide any lingering auth messages
+            } else {
+                authView.classList.remove('hidden');
+                userEmailSpan.classList.add('hidden');
+                logoutButton.classList.add('hidden');
+            }
+        }
+
+        function setAuthMode(isSignup) {
+            isSignUpMode = isSignup;
+            const buttonText = isSignup ? 'Sign Up' : 'Login';
+            const toggleText = isSignup ? 'Already have an account?' : "Don't have an account?";
+            const toggleButtonText = isSignup ? 'Login' : 'Sign Up';
+            const titleText = isSignup ? 'Create Your Account' : 'Login to Your Account';
+
+            authTitle.textContent = titleText;
+            authSubmitButton.textContent = buttonText;
+            authToggleText.textContent = toggleText;
+            authToggleButton.textContent = toggleButtonText;
+            
+            // Clear message only when toggling mode, unless it's a persistent signup message
+            if (!authMessage.textContent.includes('confirmation link') || !isSignup) {
+                 authMessage.classList.add('hidden');
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // 4. AUTHENTICATION HANDLERS
+        // ------------------------------------------------------------------
+
+        // Initial setup
+        authToggleButton.addEventListener('click', () => setAuthMode(!isSignUpMode));
+        logoutButton.addEventListener('click', handleLogout);
+        setAuthMode(false); // Start in Login mode
+
+        // Handle Form Submission (Login/Signup)
+        authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            authSubmitButton.disabled = true;
+            authSubmitButton.textContent = 'Processing...';
+            
+            // Reset message styles
+            authMessage.classList.add('hidden');
+            authMessage.classList.remove('text-yellow-700', 'bg-yellow-100', 'text-red-700', 'bg-red-100');
+
+
+            try {
+                if (isSignUpMode) {
+                    // Create Account
+                    const { error } = await supabaseClient.auth.signUp({
+                        email: email,
+                        password: password,
+                    });
+
+                    if (error) throw error;
+                    
+                    // Clear, persistent email confirmation message
+                    authMessage.textContent = 'Success! Check your email for a confirmation link to activate your account before logging in.';
+                    authMessage.classList.add('text-yellow-700', 'bg-yellow-100');
+                    authMessage.classList.remove('hidden');
+                    setAuthMode(false); // Switch to login after signup success
+
+                } else {
+                    // Login
+                    const { error } = await supabaseClient.auth.signInWithPassword({
+                        email: email,
+                        password: password,
+                    });
+
+                    if (error) throw error;
+                }
+            } catch (error) {
+                authMessage.textContent = `Error: ${error.message}`;
+                authMessage.classList.add('text-red-700', 'bg-red-100');
+                authMessage.classList.remove('hidden');
+                console.error('Auth Error:', error.message);
+            } finally {
+                authSubmitButton.disabled = false;
+                authSubmitButton.textContent = isSignUpMode ? 'Sign Up' : 'Login';
+            }
+        });
+
+        // Logout - MODIFIED FOR FASTER LOGOUT
+        async function handleLogout() {
+            // Explicitly remove all session keys from local storage first to preempt AuthSessionMissing errors
+            try {
+                // Supabase uses 'sb-' prefixed keys in local storage for session management
+                Object.keys(localStorage).forEach(key => {
+                    if (key.startsWith('sb-')) {
+                        localStorage.removeItem(key);
+                    }
+                });
+            } catch (e) {
+                console.error("Error clearing local storage keys:", e);
+            }
+            
+            // Now attempt the sign-out. Even if the session was technically 'missing', 
+            // this call ensures the server-side token is invalidated.
+            const { error } = await supabaseClient.auth.signOut();
+            if (error) {
+                console.error('Logout Error:', error);
+                // Fallback action if Supabase signout fails (should be rare after clearing storage)
+                location.reload(); 
+            }
+            // onAuthStateChange handles the UI change, which should now happen instantly.
+        }
+
+        // Auth State Listener
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+            if (session) {
+                // User is logged in
+                userEmailSpan.textContent = session.user.email;
+                showView('dashboard');
+                fetchTransactions(); 
+                subscribeToTransactions(); 
+            } else {
+                // User is logged out
+                // Unsubscribe the channel to prevent errors
+                if (transactionChannel) {
+                    supabaseClient.removeChannel(transactionChannel);
+                    transactionChannel = null;
+                    console.log("Real-time channel unsubscribed successfully.");
+                }
+                showView('auth');
+            }
+        });
+
+        // ------------------------------------------------------------------
+        // 5. TRANSACTION DATA (CRUD & Calculations)
+        // ------------------------------------------------------------------
+
+        // Dedicated function to set up the real-time channel
+        function subscribeToTransactions() {
+            if (transactionChannel) return; 
+
+            transactionChannel = supabaseClient.channel('transactions-changes')
+                .on('postgres_changes', { 
+                    event: '*', 
+                    schema: 'public', 
+                    table: 'transactions' 
+                }, payload => {
+                    fetchTransactions(); // Re-fetch all data on any change
+                })
+                .subscribe((status, err) => {
+                    if (status !== 'SUBSCRIBED' && err) {
+                        console.error("Real-time subscription error:", err);
+                    }
+                });
+        }
+
+        async function fetchTransactions() {
+            const { data, error } = await supabaseClient
+                .from('transactions')
+                .select('*')
+                .order('date', { ascending: false });
+
+            if (error) {
+                console.error('Error fetching transactions:', error);
+                return;
+            }
+            
+            transactions = data || [];
+            renderDashboard(transactions);
+        }
+
+        // Helper to format currency (NPR)
+        const formatter = new Intl.NumberFormat('en-IN', { 
+            style: 'currency',
+            currency: 'NPR',
+        });
+
+        // Display Summary Boxes & Statement
+        function renderDashboard(data) {
+            const totalCredit = data
+                .filter(t => t.type === 'credit')
+                .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+            
+            const totalDebit = data
+                .filter(t => t.type === 'debit')
+                .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+            
+            const currentBalance = totalCredit - totalDebit;
+
+            document.getElementById('totalCredit').textContent = formatter.format(totalCredit);
+            document.getElementById('totalDebit').textContent = formatter.format(totalDebit);
+            
+            const balanceElement = document.getElementById('currentBalance');
+            balanceElement.textContent = formatter.format(currentBalance);
+            // Dynamic color based on balance
+            balanceElement.classList.remove('text-blue-600', 'text-red-600');
+            balanceElement.classList.add(currentBalance >= 0 ? 'text-blue-600' : 'text-red-600');
+
+
+            const tableBody = document.getElementById('statementTableBody');
+            tableBody.innerHTML = ''; // Clear existing rows
+
+            if (data.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">No transactions recorded yet.</td></tr>';
+                return;
+            }
+
+            data.forEach(t => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                
+                // Use formatted currency in the table
+                const amountText = t.type === 'credit' 
+                    ? `<span class="text-green-600 font-semibold">${formatter.format(t.amount)}</span>` 
+                    : `<span class="text-red-600 font-semibold">${formatter.format(t.amount)}</span>`;
+
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${t.date}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm capitalize font-medium ${t.type === 'credit' ? 'text-green-500' : 'text-red-500'}">${t.type}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">${amountText}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${t.remark || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button onclick="editTransaction('${t.id}')" class="text-indigo-600 hover:text-indigo-900 mr-2">Edit</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        // ------------------------------------------------------------------
+        // 6. TRANSACTION CRUD OPERATIONS
+        // ------------------------------------------------------------------
+
+        // Handle Add/Update Submission
+        transactionForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const id = document.getElementById('transactionId').value;
+            const type = document.getElementById('transactionType').value;
+            const date = document.getElementById('transactionDate').value;
+            const amount = parseFloat(document.getElementById('transactionAmount').value);
+            const remark = document.getElementById('transactionRemark').value;
+
+            // CRUCIAL: Get the authenticated user ID for RLS
+            const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+
+            if (userError || !user) {
+                console.error('Auth Error: User not found or session expired.', userError);
+                // Custom confirmation dialog instead of alert
+                showModalMessage("Session Expired", "Your session has expired. Please log in again.", () => handleLogout()); 
+                return;
+            }
+
+            const transactionData = {
+                date: date,
+                type: type,
+                amount: amount,
+                remark: remark,
+                user_id: user.id // MANDATORY to save data against the authenticated user
+            };
+
+            let response;
+            if (id) {
+                // Update existing transaction
+                response = await supabaseClient
+                    .from('transactions')
+                    .update(transactionData)
+                    .eq('id', id);
+            } else {
+                // Add new transaction (Insert)
+                response = await supabaseClient
+                    .from('transactions')
+                    .insert([transactionData]);
+            }
+            
+            if (response.error) {
+                // Log and display the error message clearly
+                console.error('Supabase CRUD Error:', response.error);
+                showModalMessage("Transaction Failed", `Error: ${response.error.message}. This usually means Row Level Security (RLS) policies are not set up correctly for INSERT/UPDATE in Supabase.`);
+            } else {
+                console.log('Transaction saved successfully.');
+            }
+
+            closeTransactionModal();
+        });
+
+        // 7. Edit Transaction - Loads data into the modal
+        function editTransaction(id) {
+            const transaction = transactions.find(t => t.id === id);
+            if (!transaction) return;
+
+            document.getElementById('transactionId').value = transaction.id;
+            document.getElementById('transactionType').value = transaction.type;
+            document.getElementById('transactionDate').value = transaction.date;
+            document.getElementById('transactionAmount').value = transaction.amount;
+            document.getElementById('transactionRemark').value = transaction.remark;
+
+            modalTitle.textContent = `Edit ${transaction.type} Transaction`;
+            document.getElementById('saveTransactionButton').textContent = 'Update Record';
+            document.getElementById('deleteTransactionButton').classList.remove('hidden');
+            document.getElementById('deleteTransactionButton').setAttribute('data-id', id);
+
+            openTransactionModal();
+        }
+
+        // 7. Delete Transaction
+        async function deleteTransaction() {
+            const id = document.getElementById('transactionId').value;
+            if (!id) return;
+
+            // Use a custom modal for confirmation
+            showConfirmationModal("Confirm Delete", "Are you sure you want to delete this transaction?", async () => {
+                const { error } = await supabaseClient
+                    .from('transactions')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) {
+                    console.error('Delete error:', error);
+                    showModalMessage("Deletion Failed", `Failed to delete transaction. Error: ${error.message}. Check console for details.`);
+                } else {
+                    console.log('Transaction deleted successfully.');
+                }
+                closeTransactionModal();
+            });
+        }
+
+        // Modal Functions
+        function openTransactionModal(type = 'credit', id = null) {
+            transactionForm.reset();
+            document.getElementById('transactionId').value = '';
+            document.getElementById('transactionType').value = type;
+            document.getElementById('deleteTransactionButton').classList.add('hidden');
+            document.getElementById('saveTransactionButton').textContent = `Add ${type} Record`;
+            modalTitle.textContent = `Add New ${type.charAt(0).toUpperCase() + type.slice(1)} Record`;
+
+            // Set today's date as default
+            document.getElementById('transactionDate').value = new Date().toISOString().split('T')[0];
+            
+            transactionModal.classList.remove('hidden');
+        }
+
+        function closeTransactionModal() {
+            transactionModal.classList.add('hidden');
+        }
+        
+        // ------------------------------------------------------------------
+        // 8. CUSTOM MODAL IMPLEMENTATION (Replaces alert/confirm)
+        // ------------------------------------------------------------------
+
+        // Add a general-purpose modal container to the body for messages/confirmation
+        document.body.insertAdjacentHTML('beforeend', `
+            <div id="generalModal" class="modal-overlay fixed inset-0 z-[60] flex items-center justify-center hidden">
+                <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4">
+                    <h4 id="generalModalTitle" class="text-xl font-bold mb-4 text-gray-800">Title</h4>
+                    <p id="generalModalMessage" class="mb-6 text-gray-600">Message</p>
+                    <div id="generalModalActions" class="flex justify-end space-x-3">
+                        <!-- Buttons will be injected here -->
+                    </div>
+                </div>
+            </div>
+        `);
+
+        const generalModal = document.getElementById('generalModal');
+        const generalModalTitle = document.getElementById('generalModalTitle');
+        const generalModalMessage = document.getElementById('generalModalMessage');
+        const generalModalActions = document.getElementById('generalModalActions');
+
+        function showModal(title, message, actionsHtml) {
+            generalModalTitle.textContent = title;
+            generalModalMessage.textContent = message;
+            generalModalActions.innerHTML = actionsHtml;
+            generalModal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            generalModal.classList.add('hidden');
+        }
+
+        // For simple alerts/messages
+        function showModalMessage(title, message, onComplete = null) {
+            // Check if onComplete is a function and wrap it if necessary
+            const action = onComplete ? onComplete.name + '()' : '';
+            const actions = `
+                <button onclick="closeModal(); ${action}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">
+                    OK
+                </button>
+            `;
+            showModal(title, message, actions);
+        }
+
+        // For confirmations (like delete)
+        function showConfirmationModal(title, message, onConfirm) {
+            // Use the function name in the onclick handler
+            const actions = `
+                <button onclick="closeModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">
+                    Cancel
+                </button>
+                <button onclick="closeModal(); ${onConfirm.name}()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">
+                    Confirm
+                </button>
+            `;
+            showModal(title, message, actions);
+        }
+
+
+        // ------------------------------------------------------------------
+        // 7. PDF DOWNLOAD
+        // ------------------------------------------------------------------
+
+        downloadPdfButton.addEventListener('click', async () => {
+            const tableContainer = document.querySelector('.bg-white.p-6.rounded-xl.shadow-lg');
+            
+            // FIX: Ensure jsPDF is available and destructured correctly
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+                console.error("jsPDF library is not loaded correctly.");
+                showModalMessage("PDF Error", "PDF generation failed. The library dependencies are not fully loaded.");
+                return;
+            }
+            
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'pt', 'a4');
+            const date = new Date().toLocaleDateString();
+            
+            const userResponse = await supabaseClient.auth.getUser();
+            const email = userResponse.data.user ? userResponse.data.user.email : 'Unknown User';
+
+            // Temporarily hide the action column for PDF generation
+            const actionHeader = document.querySelector('#statementTable thead tr th:last-child');
+            const actionCells = document.querySelectorAll('#statementTableBody tr td:last-child');
+            actionHeader.style.display = 'none';
+            actionCells.forEach(cell => cell.style.display = 'none');
+            
+            // Add Header Text
+            pdf.setFontSize(18);
+            pdf.text('Finance Tracker Statement (NPR)', 40, 40);
+            pdf.setFontSize(12);
+            pdf.text(`User: ${email}`, 40, 60);
+            pdf.text(`Date Generated: ${date}`, 40, 75);
+
+            // Add Summary Box Data
+            const creditText = document.getElementById('totalCredit').textContent;
+            const debitText = document.getElementById('totalDebit').textContent;
+            const balanceText = document.getElementById('currentBalance').textContent;
+
+            pdf.text(`Total Credit: ${creditText}`, 40, 100);
+            pdf.text(`Total Debit: ${debitText}`, 40, 115);
+            pdf.text(`Current Balance: ${balanceText}`, 40, 130);
+
+            // Use autoTable for beautiful table generation (now works due to added CDN)
+            pdf.autoTable({
+                html: '#statementTable',
+                startY: 150,
+                headStyles: { fillColor: [59, 130, 246] }, // Blue-600 for header
+                theme: 'striped',
+                columnStyles: {
+                    0: { cellWidth: 80 },
+                    1: { cellWidth: 50 },
+                    2: { cellWidth: 80 },
+                }
+            });
+
+            // Restore action column
+            actionHeader.style.display = 'table-cell';
+            actionCells.forEach(cell => cell.style.display = 'table-cell');
+
+            pdf.save(`Finance_Statement_${date.replace(/\//g, '-')}.pdf`);
+        });
+
+    </script>
+
+</body>
+</html>
