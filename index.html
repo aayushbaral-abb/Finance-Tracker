@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker | Dashboard (NPR)</title>
+    <title>Finance Tracker-App</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -57,11 +57,11 @@
             </div>
         </header>
 
-        <!-- Auth Screen (Login/Signup) -->
+        <!-- Auth Screen (Login Only) -->
         <main id="authView" class="flex-grow flex items-center justify-center p-4">
             <div class="w-full max-w-md bg-white p-8 rounded-xl shadow-2xl">
-                <h2 id="authTitle" class="text-2xl font-bold mb-6 text-center text-blue-700">Login to Your Account</h2>
-
+                <h2 id="authTitle" class="text-2xl font-bold mb-6 text-center text-blue-700">User's Login</h2>
+                
                 <!-- Auth Message Box -->
                 <div id="authMessage" class="hidden p-3 mb-4 text-sm rounded-lg" role="alert"></div>
 
@@ -79,13 +79,8 @@
                         Login
                     </button>
                 </form>
-
-                <p class="mt-6 text-center text-sm text-gray-600">
-                    <span id="authToggleText">Don't have an account?</span>
-                    <button id="authToggleButton" class="font-medium text-blue-600 hover:text-blue-500 ml-1">
-                        Sign Up
-                    </button>
-                </p>
+                <br>
+                <P>If you want to create your account contact owner.<br><a href="https://baralaayush.com.np" target="_blank" c>👉Send Message</a></P>
             </div>
         </main>
 
@@ -194,8 +189,8 @@
 
     <!-- JavaScript Logic -->
     <script>
-        const SUPABASE_URL = 'https://bwhocmuvcyizbpwykofl.supabase.co'; // e.g., 'https://xyz.supabase.co'
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ3aG9jbXV2Y3lpemJwd3lrb2ZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2ODI0MTUsImV4cCI6MjA4MDI1ODQxNX0.0pJwBP50j9VZ1H7wVzPdZRflQEfZnidNpIFtmcP_iv8';
+        const SUPABASE_URL = 'https://bwhocmuvcyizbpwykofl.supabase.co'; 
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ3aG9jbXV2Y3lpemJwd3lrb2ZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2ODI0MTUsImV4cCI6MjA4MDI1ODQxNX0.0pJwBP50j9VZ1H7wVzPdZRflQEfZnidNpIFtmcP_iv8'; 
 
         const { createClient } = supabase;
         const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -208,8 +203,6 @@
         const authForm = document.getElementById('authForm');
         const authTitle = document.getElementById('authTitle');
         const authSubmitButton = document.getElementById('authSubmitButton');
-        const authToggleText = document.getElementById('authToggleText');
-        const authToggleButton = document.getElementById('authToggleButton');
         const authMessage = document.getElementById('authMessage');
         const userEmailSpan = document.getElementById('userEmail');
         const logoutButton = document.getElementById('logoutButton');
@@ -218,25 +211,24 @@
         const modalTitle = document.getElementById('modalTitle');
         const downloadPdfButton = document.getElementById('downloadPdfButton');
 
-        let isSignUpMode = false;
+        // Removed isSignUpMode and related elements
+
         let transactions = []; 
         let transactionChannel = null; 
 
         // ------------------------------------------------------------------
-        // 3. UI STATE MANAGEMENT
+        // 3. UI STATE MANAGEMENT (Simplified)
         // ------------------------------------------------------------------
 
         function showView(view) {
             authView.classList.add('hidden');
             dashboardView.classList.add('hidden');
             
-            // Toggle visibility for elements in the absolute right corner
-            const userInfoDiv = document.getElementById('user-info');
             if (view === 'dashboard') {
                 dashboardView.classList.remove('hidden');
                 userEmailSpan.classList.remove('hidden');
                 logoutButton.classList.remove('hidden');
-                authMessage.classList.add('hidden'); // Hide any lingering auth messages
+                authMessage.classList.add('hidden');
             } else {
                 authView.classList.remove('hidden');
                 userEmailSpan.classList.add('hidden');
@@ -244,85 +236,49 @@
             }
         }
 
-        function setAuthMode(isSignup) {
-            isSignUpMode = isSignup;
-            const buttonText = isSignup ? 'Sign Up' : 'Login';
-            const toggleText = isSignup ? 'Already have an account?' : "Don't have an account?";
-            const toggleButtonText = isSignup ? 'Login' : 'Sign Up';
-            const titleText = isSignup ? 'Create Your Account' : 'Login to Your Account';
-
-            authTitle.textContent = titleText;
-            authSubmitButton.textContent = buttonText;
-            authToggleText.textContent = toggleText;
-            authToggleButton.textContent = toggleButtonText;
-            
-            // Clear message only when toggling mode, unless it's a persistent signup message
-            if (!authMessage.textContent.includes('confirmation link') || !isSignup) {
-                 authMessage.classList.add('hidden');
-            }
-        }
+        // Removed setAuthMode function
 
         // ------------------------------------------------------------------
-        // 4. AUTHENTICATION HANDLERS
+        // 4. AUTHENTICATION HANDLERS (Login Only)
         // ------------------------------------------------------------------
 
         // Initial setup
-        authToggleButton.addEventListener('click', () => setAuthMode(!isSignUpMode));
         logoutButton.addEventListener('click', handleLogout);
-        setAuthMode(false); // Start in Login mode
 
-        // Handle Form Submission (Login/Signup)
+        // Handle Form Submission (Login ONLY)
         authForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             authSubmitButton.disabled = true;
-            authSubmitButton.textContent = 'Processing...';
+            authSubmitButton.textContent = 'Authenticating...';
             
             // Reset message styles
             authMessage.classList.add('hidden');
             authMessage.classList.remove('text-yellow-700', 'bg-yellow-100', 'text-red-700', 'bg-red-100');
 
-
             try {
-                if (isSignUpMode) {
-                    // Create Account
-                    const { error } = await supabaseClient.auth.signUp({
-                        email: email,
-                        password: password,
-                    });
+                // Attempt Login
+                const { error } = await supabaseClient.auth.signInWithPassword({
+                    email: email,
+                    password: password,
+                });
 
-                    if (error) throw error;
-                    
-                    // Clear, persistent email confirmation message
-                    authMessage.textContent = 'Success! Check your email for a confirmation link to activate your account before logging in.';
-                    authMessage.classList.add('text-yellow-700', 'bg-yellow-100');
-                    authMessage.classList.remove('hidden');
-                    setAuthMode(false); // Switch to login after signup success
-
-                } else {
-                    // Login
-                    const { error } = await supabaseClient.auth.signInWithPassword({
-                        email: email,
-                        password: password,
-                    });
-
-                    if (error) throw error;
-                }
+                if (error) throw error;
+                // Success: onAuthStateChange handles the view switch
             } catch (error) {
-                authMessage.textContent = `Error: ${error.message}`;
+                authMessage.textContent = `Login Failed: ${error.message}. Please check your credentials.`;
                 authMessage.classList.add('text-red-700', 'bg-red-100');
                 authMessage.classList.remove('hidden');
                 console.error('Auth Error:', error.message);
             } finally {
                 authSubmitButton.disabled = false;
-                authSubmitButton.textContent = isSignUpMode ? 'Sign Up' : 'Login';
+                authSubmitButton.textContent = 'Login';
             }
         });
 
-        // Logout - MODIFIED FOR FASTER LOGOUT
+        // Logout - With quick session clearing fix
         async function handleLogout() {
-            // Explicitly remove all session keys from local storage first to preempt AuthSessionMissing errors
             try {
                 // Supabase uses 'sb-' prefixed keys in local storage for session management
                 Object.keys(localStorage).forEach(key => {
@@ -334,15 +290,11 @@
                 console.error("Error clearing local storage keys:", e);
             }
             
-            // Now attempt the sign-out. Even if the session was technically 'missing', 
-            // this call ensures the server-side token is invalidated.
             const { error } = await supabaseClient.auth.signOut();
             if (error) {
                 console.error('Logout Error:', error);
-                // Fallback action if Supabase signout fails (should be rare after clearing storage)
                 location.reload(); 
             }
-            // onAuthStateChange handles the UI change, which should now happen instantly.
         }
 
         // Auth State Listener
@@ -355,7 +307,6 @@
                 subscribeToTransactions(); 
             } else {
                 // User is logged out
-                // Unsubscribe the channel to prevent errors
                 if (transactionChannel) {
                     supabaseClient.removeChannel(transactionChannel);
                     transactionChannel = null;
