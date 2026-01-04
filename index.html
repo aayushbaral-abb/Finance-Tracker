@@ -78,9 +78,7 @@ service cloud.firestore {
 
     <!-- JAVASCRIPT LOGIC -->
     <script type="module">
-        if ('service worker' in navigator) {
-    navigator.serviceWorker.register('sw.js');
-  }
+        
         // Import Firebase SDKs
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { 
