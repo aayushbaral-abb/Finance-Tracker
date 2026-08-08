@@ -8,6 +8,8 @@
   <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/css3/css3-original.svg" alt="CSS3" width="40" height="40" />
   &nbsp;&nbsp;&nbsp;&nbsp;
   <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/javascript/javascript-original.svg" alt="JavaScript" width="40" height="40" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/firebase/firebase-original.svg" alt="Firebase" width="40" height="40" />
 </p>
 
 <h1 align="center">Finance Tracker (NPR)</h1>
@@ -25,6 +27,7 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/Backend-Firebase-FFCA28.svg" alt="Backend Firebase" />
   <img src="https://img.shields.io/badge/Currency-NPR-blue.svg" alt="Currency NPR" />
   <img src="https://img.shields.io/badge/PWA-Supported-purple.svg" alt="PWA Ready" />
   <img src="https://img.shields.io/badge/Export-PDF-red.svg" alt="PDF Export" />
@@ -34,7 +37,8 @@
 
 ## ✨ Features
 
-* **📊 Live Balance Summary:** Real-time overview cards tracking Total Credit (+), Total Debit (-), and Current Balance.
+* **🔥 Cloud Database Sync:** Real-time data persistence, user authentication, and transaction record management powered by Firebase.
+* **📊 Live Balance Summary:** Real-time overview cards tracking Total Credit (+), Total Debit (-), and Current Balance in NPR.
 * **💳 Transaction Logging:** Easily record incoming credits and outgoing debits with custom remarks and date stamps.
 * **📑 Detailed Statement View:** Itemized transaction history table with date, remark, type, amount, and quick action controls.
 * **📄 PDF Export:** One-click **Download PDF** button to generate and export your complete financial statement for offline records.
@@ -46,6 +50,7 @@
 ## 🛠️ Tech Stack & Architecture
 
 * **Frontend:** HTML5, CSS3, JavaScript (Vanilla ES6+)
+* **Backend & Database:** Firebase (Authentication, Firestore Realtime Database)
 * **App Capabilities:** PWA Manifest (`manifest.json`)
 * **SEO & Hosting:** `CNAME`, `sitemap.txt`, GitHub Pages
 
